@@ -8,7 +8,7 @@ This repository contains the 5G testbed setup tutorial for the **ACM ImmerCom 20
 
 * **Authors**
 
-[Tianyuan (Alex) Du](https://gorlatova.pratt.duke.edu/people/tianyuan-alex-du), [Hanting Ye](https://gorlatova.pratt.duke.edu/people/hanting-ye), Yiming Li, [Tianyi Hu](https://gorlatova.pratt.duke.edu/people/tianyi-hu), [Tingjun Chen](https://github.com/tingjunchen), and [Maria Gorlatova](https://maria.gorlatova.com/) — Duke University
+[Tianyuan (Alex) Du](https://gorlatova.pratt.duke.edu/people/tianyuan-alex-du), [Hanting Ye](https://gorlatova.pratt.duke.edu/people/hanting-ye), [Yiming Li](https://yimingli.io/), [Tianyi Hu](https://gorlatova.pratt.duke.edu/people/tianyi-hu), [Tingjun Chen](https://github.com/tingjunchen), and [Maria Gorlatova](https://maria.gorlatova.com/) — Duke University
 
 * **Description**
 
