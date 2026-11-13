@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: "If this tutorial helps your research, please cite the paper below."
+title: "OAI-5G-Quest3-Tutorial: OAI 5G Setup Tutorial for Meta Quest 3"
+type: software
+authors:
+  - family-names: Li
+    given-names: Yiming
+  - family-names: Du
+    given-names: Tianyuan
+repository-code: "https://github.com/functions-lab/OAI-5G-Quest3-Tutorial"
+license: CC-BY-4.0
+preferred-citation:
+  type: conference-paper
+  title: "5G × Headsets: An Application-Level Measurement Study of 5G Latency for Networked Immersive XR"
+  authors:
+    - family-names: Du
+      given-names: Tianyuan
+    - family-names: Ye
+      given-names: Hanting
+    - family-names: Li
+      given-names: Yiming
+    - family-names: Hu
+      given-names: Tianyi
+    - family-names: Chen
+      given-names: Tingjun
+    - family-names: Gorlatova
+      given-names: Maria
+  collection-title: "Proceedings of the 4th ACM Workshop on Mobile Immersive Computing, Networking, and Systems (ImmerCom '26)"
+  publisher:
+    name: ACM
+  year: 2026
+  month: 10
+  start: 8
+  end: 14
+  doi: "10.1145/3842656.3843826"
