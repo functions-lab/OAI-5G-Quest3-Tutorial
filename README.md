@@ -14,6 +14,8 @@ This repository contains the 5G testbed setup tutorial for the **ACM ImmerCom 20
 
 This tutorial shows how to give a commercial Meta Quest 3 headset 5G connectivity using an open-source standalone 5G network. The testbed is built on [OpenAirInterface (OAI)](https://openairinterface.org/): the gNB (`nr-softmodem` with a USRP B210, band n78, 106 PRBs) and the containerized OAI 5G core run together on a single workstation. Because the Meta Quest 3 has no cellular connectivity, a Quectel RM520N-GL 5G module connects the headset to the network as a USB Ethernet device.
 
+This repository covers the 5G network and headset connectivity setup used in the paper. The XR application, traffic injection, and measurement analysis are outside its scope.
+
 ![Overview of the 5G testbed (left) and the hardware of the system (right)](docs/testbed.png)
 
 *Left: overview of the 5G testbed. Right: hardware of the system. The 5G modules (RM520N-GL) connect wirelessly to the gNB (Dell XPS 8930 with a USRP B210) and by wire to the Meta Quest 3 and the traffic generation PC.*
@@ -28,7 +30,8 @@ Please cite the following paper in your publications if this tutorial helps your
 @inproceedings{Du26FiveGHeadsets,
   title     = {{5G} $\times$ Headsets: An Application-Level Measurement Study of {5G} Latency for Networked Immersive {XR}},
   author    = {Du, Tianyuan and Ye, Hanting and Li, Yiming and Hu, Tianyi and Chen, Tingjun and Gorlatova, Maria},
-  booktitle = {Proc. ACM Workshop on Mobile Immersive Computing, Networking, and Systems (ImmerCom)},
+  booktitle = {Proceedings of the 4th ACM Workshop on Mobile Immersive Computing, Networking, and Systems (ImmerCom '26)},
+  publisher = {ACM},
   pages     = {8--14},
   year      = {2026},
   doi       = {10.1145/3842656.3843826}
@@ -51,6 +54,7 @@ This tutorial is licensed under the [Creative Commons Attribution 4.0 Internatio
 
 ## Tutorial
 
+* [Prerequisites](#prerequisites)
 * [I. Devices Info](#i-devices-info)
 * [II. Module Setup (One-Time)](#ii-module-setup-one-time)
 * [III. Cold Start](#iii-cold-start)
@@ -59,11 +63,32 @@ This tutorial is licensed under the [Creative Commons Attribution 4.0 Internatio
 * [VI. Add User (Flash SIM Card)](#vi-add-user-flash-sim-card)
 
 > [!NOTE]
-> This cookbook assumes you are running the exact device configurations listed in the [Devices Info](#i-devices-info) section. It does not include initial installation or optimization steps.
+> This cookbook assumes you are running the exact device configurations listed in the [Devices Info](#i-devices-info) section. It does not repeat the upstream installation steps; see [Prerequisites](#prerequisites) for where to find them.
 >
 > **Do not use this guide to set up systems with different hardware/software configurations.**
 >
 > This guide assumes the PLMN `00101` is used throughout the deployment.
+
+### Prerequisites
+
+This tutorial starts from a machine on which the OAI gNB and 5G core are already installed. We followed the upstream OpenAirInterface tutorials for the installation and kept their default configurations; the only change is the subscriber information (IMSI, KEY, and OPC) described in [Add User](#vi-add-user-flash-sim-card).
+
+* **OAI 5G core (`~/oai-cn5g`):** [NR SA Tutorial: OAI CN5G](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/NR_SA_Tutorial_OAI_CN5G.md)
+* **UHD, OAI gNB with USRP B210 (`~/openairinterface5g`), and SIM card programming:** [NR SA Tutorial: COTS UE](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/NR_SA_Tutorial_COTS_UE.md)
+* **SIM card tool (`~/sim_card/pysim`):** [pySim](https://github.com/osmocom/pysim), installed in a conda environment named `sim_card`
+* **Host tools:** `linux-tools` (`cpupower`), `cpufrequtils` (`cpufreq-set`), `lm-sensors` (`sensors`), `i8kutils` (`i8kctl`), `pcsc-tools` (`pcsc_scan`), and `minicom` (AT commands)
+
+The host tuning applied on top of the upstream installation is listed in [Devices Info](#i-devices-info).
+
+**First-time setup order.** [Cold Start](#iii-cold-start) describes the routine procedure once everything is configured. When bringing up a new SIM card and module for the first time, follow this order:
+
+1. Flash the SIM card and add the user to the core network database ([Add User](#vi-add-user-flash-sim-card)).
+2. Start the core network and the gNB ([Cold Start](#iii-cold-start), steps 1–5).
+3. Configure the module ([Module Setup](#ii-module-setup-one-time)); its network scan requires the gNB to be on air.
+4. Connect the module to the headset ([Cold Start](#iii-cold-start), steps 6–7).
+
+> [!IMPORTANT]
+> The gNB transmits in NR band n78 (3.5 GHz). Make sure you are authorized to transmit in this band at your location, or operate in a shielded environment.
 
 ### I. Devices Info
 
@@ -83,14 +108,16 @@ This tutorial is licensed under the [Creative Commons Attribution 4.0 Internatio
     * Re-applied thermal paste.
     * Cleaned the CPU cooler/fan.
 * **SDR:** USRP B210 (USB 3.0), NR band n78 (3.5 GHz), 106 PRBs
-* **UE:** Quectel RM520N-GL, firmware upgraded from `RM520NGLAAR03A01M4G_01.202.01.202` to `RM520NGLAAR03A03M4G_A0.304.A0.304`
+* **Software:** OAI gNB (`nr-softmodem`) and OAI 5G core (`develop` Docker images) with their default configurations, UHD 4.8.0
+* **UE:** Two Quectel RM520N-GL modules (one for the Meta Quest 3, one for the traffic generation PC), each on a Waveshare M.2-to-USB adapter board, firmware upgraded from `RM520NGLAAR03A01M4G_01.202.01.202` to `RM520NGLAAR03A03M4G_A0.304.A0.304`
 * **XR headset:** Meta Quest 3
+* **Traffic generation PC (optional, used for the measurements in the paper):** Lambda TensorBook with Ubuntu 22.04
 * **SIM card:** sysmoISIM-SJA5-9FV
 * **Smart card reader:** HID OMNIKEY 3121 (PC/SC)
 
 ### II. Module Setup (One-Time)
 
-A factory-image RM520N-GL must be configured once to connect to the OAI gNB. Send the following AT commands to the module in order. The settings are stored on the module, so this does not need to be repeated after a cold boot.
+A factory-image RM520N-GL must be configured once to connect to the OAI gNB. Connect the module to a PC over USB and send the following AT commands in order over its AT serial port (e.g., with `minicom`). The gNB must be running for the network scan and PLMN selection. The settings are stored on the module, so this does not need to be repeated after a cold boot.
 
 ```text
 # Factory reset
@@ -108,7 +135,8 @@ AT+CFUN=1,1
 # Check the carrier policy list built into the firmware
 # ("ROW_Commercial" works for PLMN 00101)
 AT+QMBNCFG="list"
-+QMBNCFG: "List",0,1,1,"ROW_Commercial",0x0A010809,202401151
+# Expected response:
+#   +QMBNCFG: "List",0,1,1,"ROW_Commercial",0x0A010809,202401151
 
 # Perform a network scan; you should see 00101 in the results
 AT+QSCAN=3,1
@@ -212,7 +240,7 @@ AT+CFUN=1,1
    sudo cpupower frequency-set --min 4.40GHz --max 4.40GHz --governor performance
    ```
 
-3. Verify the CPU frequency and fan speed. You should hear the fans running at full speed. Monitor them in real-time:
+3. Verify the CPU frequency and fan speed. You should hear the fans running at full speed. Monitor them in real-time (run each command in its own terminal):
 
    ```bash
    watch -n 1 sensors
@@ -298,6 +326,11 @@ The RM520N-GL runs automatically without additional setup. Once powered, it will
 
 No additional software or configuration is required on the headset.
 
+3. Verify the connection:
+
+   * In the gNB console, the module appears as a connected UE (see the RRC connection logs in step 5), followed by periodic per-UE statistics.
+   * On the headset, with Wi-Fi disabled, confirm that it still has network access (e.g., load a web page in the browser). All of its traffic now goes through the 5G network.
+
 ### IV. Stop
 
 #### 1. Stop the CN
@@ -361,7 +394,9 @@ Scanning present readers...
 
 #### 2. Prepare the New User Info
 
-Each user in the 5G network must have a unique IMSI.
+Each user in the 5G network must have a unique IMSI, and is authenticated with a KEY and an OPC. Choose your own KEY and OPC (32 hex digits each); they may be shared across users, but the values flashed to the SIM card must match those in the CN database.
+
+The IMSI:
 
 * Must be pure numeric, 15 digits.
 * Starts with `00101` (per our PLMN).
@@ -377,17 +412,17 @@ grep "00101" ~/oai-cn5g/database/oai_db.sql
 
 #### 3. Flash the SIM Card
 
-Look up your sysmoISIM-SJA5-9FV's ADM key using the **last row of digits** printed on the nano SIM. This matches the ICCID.
+Look up your sysmoISIM-SJA5-9FV's ADM key (provided by the SIM card vendor with your order) using the **last row of digits** printed on the nano SIM. This matches the ICCID.
 
 > [!WARNING]
 > Do **NOT** use the IMSI printed on the external SIM card holder to look up the ADM key. Make sure you use the correct ADM key; three failed attempts will **permanently** lock the SIM card!
 
-Replace `<ADM>`, `<IMSI>`, `<KEY>`, and `<OPC>` in the command below:
+Replace `<ADM>`, `<ICCID>`, `<IMSI>`, `<KEY>`, and `<OPC>` in the command below (`<ICCID>` is the card's own ICCID):
 
 ```bash
 conda activate sim_card
 cd ~/sim_card/pysim
-./pySim-prog.py -p 0 -t sysmoISIM-SJA5 -a <ADM> -x 001 -y 01 -i <IMSI> -s 8988211000000110000 -o <OPC> -k <KEY>
+./pySim-prog.py -p 0 -t sysmoISIM-SJA5 -a <ADM> -x 001 -y 01 -i <IMSI> -s <ICCID> -o <OPC> -k <KEY>
 ```
 
 | Term | Description | Modifiable? | Notes |
@@ -403,6 +438,7 @@ cd ~/sim_card/pysim
 1. **User Authentication Data:** Replace values in the following SQL snippet and insert it into `~/oai-cn5g/database/oai_db.sql` under the `AuthenticationSubscription` table:
 
    ```sql
+   INSERT INTO `AuthenticationSubscription` (`ueid`, `authenticationMethod`, `encPermanentKey`, `protectionParameterId`, `sequenceNumber`, `authenticationManagementField`, `algorithmId`, `encOpcKey`, `encTopcKey`, `vectorGenerationInHss`, `n5gcAuthMethod`, `rgAuthenticationInd`, `supi`) VALUES
    ('<IMSI>', '5G_AKA', '<KEY>', '<KEY>', '{"sqn": "000000000000", "sqnScheme": "NON_TIME_BASED", "lastIndexes": {"ausf": 0}}', '8000', 'milenage', '<OPC>', NULL, NULL, NULL, NULL, '<IMSI>');
    ```
 
@@ -414,4 +450,4 @@ cd ~/sim_card/pysim
    ```
 
 > [!NOTE]
-> After adding a new user, restart the Core Network for the changes to take effect. See the [Restart](#v-restart) section for instructions.
+> After adding a new user, restart the Core Network for the changes to take effect. See the [Restart](#v-restart) section for instructions. The database is only re-created from `oai_db.sql` when the CN is stopped with `docker compose down -v`.
